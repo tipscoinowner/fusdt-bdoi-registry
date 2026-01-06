@@ -1,0 +1,2 @@
+# fusdt-bdoi-registry
+BLOCKCHAIN DIGITAL OBJECT IDENTIFIER
