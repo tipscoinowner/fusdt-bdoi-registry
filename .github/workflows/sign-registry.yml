@@ -1,0 +1,34 @@
+name: Sign Registry
+
+on:
+  push:
+    paths:
+      - "bdoi_registry.json"
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup OpenSSL
+        run: openssl version
+
+      - name: Restore private key
+        run: |
+          echo "$B64_PRIVATE_KEY" | base64 -d > bdoi_private_key.pem
+        env:
+          B64_PRIVATE_KEY: ${{ secrets.BDOI_PRIVATE_KEY }}
+
+      - name: Sign registry
+        run: |
+          chmod +x scripts/sign-registry.sh
+          ./scripts/sign-registry.sh
+
+      - name: Commit signature
+        run: |
+          git config user.name "bDOI Bot"
+          git config user.email "bot@fusdt.io"
+          git add registry.sig
+          git commit -m "chore: update registry signature" || echo "no changes"
+          git push
