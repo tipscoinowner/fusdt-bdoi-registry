@@ -8,27 +8,31 @@ on:
 jobs:
   sign:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup OpenSSL
-        run: openssl version
-
       - name: Restore private key
         run: |
-          echo "$B64_PRIVATE_KEY" | base64 -d > bdoi_private_key.pem
-        env:
-          B64_PRIVATE_KEY: ${{ secrets.BDOI_PRIVATE_KEY }}
+          echo "${{ secrets.BDOI_PRIVATE_KEY }}" | base64 -d > key.pem
+          chmod 600 key.pem
+
+      - name: Generate hash
+        run: sha256sum bdoi_registry.json > registry.sha256
 
       - name: Sign registry
         run: |
-          chmod +x scripts/sign-registry.sh
-          ./scripts/sign-registry.sh
+          openssl dgst -sha256 -sign key.pem registry.sha256 > registry.sig
+
+      - name: Verify signature
+        run: |
+          openssl dgst -sha256 -verify <(openssl rsa -in key.pem -pubout) \
+          -signature registry.sig registry.sha256
 
       - name: Commit signature
         run: |
           git config user.name "bDOI Bot"
           git config user.email "bot@fusdt.io"
-          git add registry.sig
-          git commit -m "chore: update registry signature" || echo "no changes"
+          git add registry.sig registry.sha256
+          git commit -m "chore: sign registry" || exit 0
           git push
