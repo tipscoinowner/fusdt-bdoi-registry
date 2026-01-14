@@ -1,40 +1,26 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Release version (e.g. v1.0.0)"
-        required: true
+  push:
+    tags:
+      - "v*"
 
 jobs:
-  tag-and-release:
+  release:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Update registry version
-        run: |
-          VERSION=${{ github.event.inputs.version }}
-          jq ".version = \"${VERSION}\"" bdoi_registry.json > bdoi_registry.tmp
-          mv bdoi_registry.tmp bdoi_registry.json
-
-      - name: Commit version bump
-        run: |
-          git config user.name "bDOI Bot"
-          git config user.email "bot@fusdt.io"
-          git add bdoi_registry.json
-          git commit -m "chore: bump registry version to ${{ github.event.inputs.version }}" || echo "no changes"
-
-      - name: Create tag
-        run: |
-          git tag ${{ github.event.inputs.version }}
-          git push --follow-tags
+      - name: Generate registry hash
+        run: sha256sum bdoi_registry.json > registry.sha256
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version }}
           files: |
             bdoi_registry.json
+            registry.sha256
             registry.sig
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
